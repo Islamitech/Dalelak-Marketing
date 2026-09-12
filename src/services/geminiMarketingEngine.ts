@@ -216,14 +216,14 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
       try {
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash',
+          model: 'gemini-3.6-flash',
           contents: prompt,
           config: { responseMimeType: 'application/json' },
         });
         jsonText = response.text || null;
       } catch (sdkErr: any) {
         console.warn('Gemini SDK direct call failed, trying REST fallback:', sdkErr?.message);
-        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+        const candidateModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
         for (const model of candidateModels) {
           jsonText = await callGeminiRestApi(apiKey, model, prompt, 15000);
           if (jsonText) break;

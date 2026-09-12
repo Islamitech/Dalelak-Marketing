@@ -25,6 +25,7 @@ import {
   saveActivityProgress,
   getOfflineDemoBusinesses,
   getServerConfig,
+  isGeminiKeyConfigured,
 } from './services/dalilakService';
 import { generateComprehensiveMarketingPlan } from './services/geminiMarketingEngine';
 import { Header } from './components/Header';
@@ -51,8 +52,7 @@ export function App() {
   // Initialize: Check server connectivity only without auto-selecting or consuming AI
   useEffect(() => {
     async function init() {
-      const config = getServerConfig();
-      setIsAiLive(Boolean(config.geminiKey && config.geminiKey.length > 20));
+      setIsAiLive(isGeminiKeyConfigured());
 
       const res = await fetchDalilakBusinesses({ limit: 1 });
       setIsCoreLive(res.isLive);
@@ -105,8 +105,7 @@ export function App() {
       setProgress(newProgress);
       await saveActivityProgress(newProgress);
       
-      const config = getServerConfig();
-      setIsAiLive(Boolean(config.geminiKey && config.geminiKey.startsWith('AIzaSy')));
+      setIsAiLive(isGeminiKeyConfigured());
     } catch (err) {
       console.error('Generation error:', err);
     } finally {
@@ -179,7 +178,7 @@ export function App() {
             <div className="flex items-center gap-2 w-full md:w-auto">
               <input
                 type="password"
-                placeholder="أدخل مفتاح AIzaSy..."
+                placeholder="أدخل مفتاح Gemini API (AIzaSy... أو AQ...)"
                 id="quick-gemini-key-input"
                 className="px-3 py-2 text-xs rounded-xl border border-amber-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono flex-1 md:w-64"
               />

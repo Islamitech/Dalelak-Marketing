@@ -222,10 +222,10 @@ export const Header: React.FC<HeaderProps> = ({
                   value={config.geminiKey}
                   onChange={(e) => setConfig({ ...config, geminiKey: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden text-xs font-mono"
-                  placeholder="AIzaSy..."
+                  placeholder="AIzaSy... أو AQ..."
                 />
                 <p className="text-xs text-slate-400 mt-1">
-                  إذا تُرك فارغاً أو نفدت الحصص، سيعمل المحرك الذكي المدمج بتوليد محلي 100% بدقة مصرية عالية.
+                  المفتاح الافتراضي مدمج تلقائياً (gemini-3.6-flash)، ويمكنك إدخال مفتاحك الخاص في أي وقت.
                 </p>
               </div>
 
