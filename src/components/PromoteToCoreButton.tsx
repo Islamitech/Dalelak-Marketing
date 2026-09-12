@@ -65,18 +65,18 @@ export const PromoteToCoreButton: React.FC<PromoteToCoreButtonProps> = ({
         className={`flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xs ${
           isAlreadyPromoted
             ? 'bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100'
-            : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 active:scale-95'
+            : 'bg-amber-500 hover:bg-amber-600 text-slate-950 font-black shadow-amber-500/20 active:scale-95'
         }`}
       >
         {isAlreadyPromoted ? (
           <>
             <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            <span>معتمد في السيرفر الأساسي</span>
+            <span>محفوظ في سيرفر المنظومة (جاهز للمرحلة 3)</span>
           </>
         ) : (
           <>
             <UploadCloud className="w-4 h-4" />
-            <span>ترقية واعتماد النشاط للسيرفر الأساسي</span>
+            <span>حفظ لسيرفر المساعدين (جاهز للمرحلة 3)</span>
           </>
         )}
       </button>
@@ -88,34 +88,38 @@ export const PromoteToCoreButton: React.FC<PromoteToCoreButtonProps> = ({
             
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-800">
+                <div className="p-2 rounded-xl bg-amber-100 text-amber-900">
                   <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="font-black text-slate-900 text-base">
-                    ترقية واعتماد النشاط في السيرفر الأساسي
+                    حفظ ومزامنة مخرجات التسويق للمنظومة
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Core Production Server Promotion
+                    Ecosystem Sync • جاهز لاستوديو العروض (المرحلة 3)
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowConfirmModal(false)}
-                className="p-1 rounded-lg text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <p className="text-xs text-slate-600 leading-relaxed">
-              عند اعتماد النشاط، سيتم نقل الخطة التسويقية وهوية المنشأة إلى قاعدة بيانات دليلك الأساسية ليصبح النشاط موثقاً رسمياً ويتابعه فريق العمل والمناديب الميدانيين.
+              سيتم حفظ وتحديث الخطة التسويقية للنشاط داخل جدول <code className="text-amber-800 bg-amber-50 px-1 py-0.5 rounded font-mono font-bold">marketing_activities</code> في سيرفر المساعدين (<span className="font-mono text-slate-800">hzlbbzxccqfdeyumtxph</span>).
             </p>
+
+            <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl text-xs text-amber-950">
+              <strong>تنبيه مسار العمل:</strong> المرحلة 3 (استوديو العينات المحمية والعروض) هي المحطة الوحيدة المخولة بنقل وتأكيد واعتماد البيانات رسمياً للسيرفر الأساسي لدليلك بعد موافقة العميل.
+            </div>
 
             {/* Assets Checklist */}
             <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-2 text-xs">
               <div className="font-bold text-slate-800 mb-1">
-                الأصول والبيانات الجاهزة للنقل:
+                الأصول الجاهزة للمزامنة:
               </div>
               <div className="flex items-center gap-2 text-slate-700">
                 <FileCheck className="w-4 h-4 text-emerald-600" />
@@ -138,11 +142,11 @@ export const PromoteToCoreButton: React.FC<PromoteToCoreButtonProps> = ({
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 text-xs font-bold"
+                className="px-4 py-2 rounded-xl text-slate-600 hover:bg-slate-100 font-bold text-xs"
               >
                 إلغاء
               </button>
@@ -150,10 +154,16 @@ export const PromoteToCoreButton: React.FC<PromoteToCoreButtonProps> = ({
                 type="button"
                 onClick={handlePromote}
                 disabled={isPromoting}
-                className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-600/20 disabled:opacity-50"
+                className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs flex items-center gap-2 shadow-xs transition cursor-pointer"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>{isPromoting ? 'جاري الاعتماد والترقية...' : 'تأكيد الترقية والاعتماد'}</span>
+                {isPromoting ? (
+                  <span>جاري المزامنة والحفظ...</span>
+                ) : (
+                  <>
+                    <UploadCloud className="w-4 h-4" />
+                    <span>تأكيد المزامنة مع المنظومة</span>
+                  </>
+                )}
               </button>
             </div>
 
