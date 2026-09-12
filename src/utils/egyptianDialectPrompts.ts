@@ -93,12 +93,23 @@ export const CONTENT_PILLARS_METADATA: Record<
   },
 };
 
-export type BusinessDomain = 'medical' | 'dining' | 'automotive' | 'beauty' | 'retail' | 'general';
+export type BusinessDomain = 
+  | 'medical' 
+  | 'dining' 
+  | 'automotive' 
+  | 'beauty' 
+  | 'contracting_decor' 
+  | 'corporate_services' 
+  | 'education' 
+  | 'real_estate' 
+  | 'fitness_sports' 
+  | 'retail' 
+  | 'general';
 
 export function detectBusinessDomain(name: string, category: string, description?: string): BusinessDomain {
   const combined = `${name || ''} ${category || ''} ${description || ''}`.toLowerCase();
 
-  // 1. Medical & Health & Prosthetics & Orthotics
+  // 1. Medical & Health
   if (
     /علاج طبيعي|تأهيل|عياد|طبيب|دكتور|طبي|أسنان|مستشفى|مركز طبي|صحة|صيدلية|جلدية|عظام|باطنة|أطفال|نفسي|علاج|مفاصل|عمود فقري|غضروف|ميديكال|اطراف صناعية|أطراف صناعية|اجهزة تعويضية|أجهزة تعويضية|مستلزمات طبية|أجهزة طبية|أطراف|تعويضية|بتر|حركة|كرسي متحرك|عكاز|مسالك|أشعة|معمل|تحاليل|بصريات|نظارات|سماعات|تخاطب|علاج وظيفي|قدم سكري|شلل|تأهيل حركي|جبائر|دعامات/i.test(
       combined
@@ -109,7 +120,7 @@ export function detectBusinessDomain(name: string, category: string, description
 
   // 2. Dining & Food
   if (
-    /مطعم|مشويات|أكل|كافيه|مقهى|قهوة|طعام|مشاوي|شاورما|برجر|بيتزا|حلويات|عصير|فطير|مخبز|ساندوتش/i.test(
+    /مطعم|مشويات|أكل|كافيه|مقهى|قهوة|طعام|مشاوي|شاورما|برجر|بيتزا|حلويات|عصير|فطير|مخبز|ساندوتش|فول وطعمية|كريب|وافل|آيس كريم|مأكولات|مطبخ/i.test(
       combined
     )
   ) {
@@ -117,17 +128,42 @@ export function detectBusinessDomain(name: string, category: string, description
   }
 
   // 3. Automotive
-  if (/سيارات|غسيل سيارات|تلميع|مغسلة|نانو سيراميك|ورشة|ميكانيكا|زيوت|كاوتش|كار كير/i.test(combined)) {
+  if (/سيارات|غسيل سيارات|تلميع|مغسلة|نانو سيراميك|ورشة|ميكانيكا|زيوت|كاوتش|كار كير|بطاريات|عفشة|سمكرة|دوكو|قطع غيار سيارات/i.test(combined)) {
     return 'automotive';
   }
 
-  // 4. Beauty & Salon
-  if (/صالون|كوافير|تجميل|سبا|ميكب|حلاقة|باربر|عناية بالبشرة|شعر|أظافر/i.test(combined)) {
+  // 4. Beauty & Personal Care
+  if (/صالون|كوافير|تجميل|سبا|ميكب|حلاقة|باربر|عناية بالبشرة|شعر|أظافر|ميك اب|بروتين شعر|باديكير/i.test(combined)) {
     return 'beauty';
   }
 
-  // 5. Retail & Fashion
-  if (/ملابس|أزياء|أحذية|سوبرماركت|بقالة|تجزئة|إلكترونيات|موبايل|مفروشات|أثاث|عطور/i.test(combined)) {
+  // 5. Contracting, Decor & Interior
+  if (/مقاولات|تشطيبات|ديكور|مهندس|تصميم داخلي|أثاث|مفروشات|نجارة|حدادة|ألومنيوم|رخام|سيراميك|جبس|دهانات|أبواب|مطابخ خشب|ستائر|زجاج/i.test(combined)) {
+    return 'contracting_decor';
+  }
+
+  // 6. Corporate, Legal & Financial Services
+  if (/محام|قانون|محاسب|ضرائب|مراجعة حسابات|استشارات|لوجستيات|شحن|تخليص جمركي|ترجمة معتمدة|أمن وحراسة|توريدات عمومية/i.test(combined)) {
+    return 'corporate_services';
+  }
+
+  // 7. Education & Academies
+  if (/مدرسة|حضانة|أكاديمية|تدريب|سنتر تعليمي|كورسات|لغات|تعليم|تأسيس أطفال|دروس|مدارس|أكاديميه/i.test(combined)) {
+    return 'education';
+  }
+
+  // 8. Real Estate & Development
+  if (/عقارات|وساطة عقارية|تطوير عقاري|شقق|فيلات|أراضي|إيجار|بيع وشراء عقار|استثمار عقاري/i.test(combined)) {
+    return 'real_estate';
+  }
+
+  // 9. Fitness & Sports
+  if (/جيم|لياقة|رياضة|فتنس|كروس فت|أكاديمية كورة|سباحة|كيك بوكسنج|ملاعب|كمال أجسام/i.test(combined)) {
+    return 'fitness_sports';
+  }
+
+  // 10. Retail & Commercial
+  if (/ملابس|أزياء|أحذية|شنط|سوبرماركت|بقالة|تجزئة|إلكترونيات|موبايل|هواتف|كمبيوتر|أجهزة منزلية|عطور|ساعات|نظارات شمس|هدايا|ألعاب/i.test(combined)) {
     return 'retail';
   }
 
@@ -161,6 +197,16 @@ export function generateCategoryAwareLocalStrategy(
     return generateBeautyStrategy(name, cat, city, tone);
   } else if (domain === 'dining') {
     return generateDiningStrategy(name, cat, city, tone);
+  } else if (domain === 'contracting_decor') {
+    return generateContractingStrategy(name, cat, city, tone);
+  } else if (domain === 'corporate_services') {
+    return generateCorporateStrategy(name, cat, city, tone);
+  } else if (domain === 'education') {
+    return generateEducationStrategy(name, cat, city, tone);
+  } else if (domain === 'real_estate') {
+    return generateRealEstateStrategy(name, cat, city, tone);
+  } else if (domain === 'fitness_sports') {
+    return generateFitnessStrategy(name, cat, city, tone);
   } else {
     return generateGeneralStrategy(name, cat, city, tone);
   }
@@ -707,6 +753,187 @@ function generateDiningStrategy(
 }
 
 // ----------------------------------------------------
+
+// ----------------------------------------------------
+// 5. CONTRACTING & INTERIOR DECOR STRATEGY
+// ----------------------------------------------------
+function generateContractingStrategy(
+  name: string,
+  cat: string,
+  city: string,
+  tone: MarketingTone
+): {
+  persona: MarketingPersona;
+  calendar: ContentCalendarDay[];
+  readyPosts: ReadySocialPost[];
+  whatsappCampaigns: WhatsAppCampaign[];
+} {
+  const persona: MarketingPersona = {
+    businessName: name,
+    category: cat,
+    slogan: `مع ${name}.. تشطيب وديكور هندسي يبني حلمك بأعلى جودة! 🏗️✨`,
+    brandVoice: 'صوت هندسي موثوق، يجمع بين الذوق الرفيع، دقة المواعيد، وشفافية التكاليف وخامات تدوم.',
+    toneOfVoice: tone,
+    targetAudience: {
+      demographics: `أصحاب الشقق، الفيلات، والمكاتب والمحلات التجارية في ${city}.`,
+      painPoints: ['التأخر في مواعيد التسليم.', 'عيوب التشطيب وظهور شروخ أو مشاكل سباكة وكهرباء.', 'زيادة التكاليف غير المتوقعة عن المقايسة.'],
+      desires: ['استلام على المفتاح بمواصفات هندسية دقيقة.', 'تصميم 3D يوضح شكل الوحدة قبل البدء.', 'عقد واضح وضمان حقيقي بعد التسليم.'],
+    },
+    uniqueSellingProposition: `في ${name} نلتزم بجداول زمنية صارمة، إشراف هندسي يومي، وباقات تشطيب تناسب ميزانيتك بأجود الخامات.`,
+    recommendedPostingSchedule: 'يومياً بين 6:00 حتى 9:30 مساءً.',
+    suggestedColors: { primary: '#0f766e', secondary: '#b45309', accent: '#f59e0b' },
+  };
+
+  const calendar = buildGenericDomainCalendar(name, cat, city, 'contracting');
+  const readyPosts = buildGenericDomainPosts(name, cat, city, 'contracting');
+  const whatsappCampaigns = buildGenericDomainWhatsApp(name, cat, city, 'contracting');
+  return { persona, calendar, readyPosts, whatsappCampaigns };
+}
+
+// ----------------------------------------------------
+// 6. CORPORATE & LEGAL & FINANCIAL SERVICES STRATEGY
+// ----------------------------------------------------
+function generateCorporateStrategy(
+  name: string,
+  cat: string,
+  city: string,
+  tone: MarketingTone
+): {
+  persona: MarketingPersona;
+  calendar: ContentCalendarDay[];
+  readyPosts: ReadySocialPost[];
+  whatsappCampaigns: WhatsAppCampaign[];
+} {
+  const persona: MarketingPersona = {
+    businessName: name,
+    category: cat,
+    slogan: `مع ${name}.. حماية قانونية واستشارات أعمال موثوقة لنجاحك! ⚖️💼`,
+    brandVoice: 'صوت رسمي رصين، يعكس الهيبة، السرية التامة، والمعرفة القانونية والإدارية العميقة.',
+    toneOfVoice: tone,
+    targetAudience: {
+      demographics: `أصحاب الشركات، رواد الأعمال، والأفراد الباحثين عن استشارات متخصصة في ${city}.`,
+      painPoints: ['التعرض لثغرات قانونية أو غرامات ضريبية.', 'بطء الإجراءات وتعطل المصالح.', 'القلق من عدم سرية البيانات.'],
+      desires: ['أمان قانوني وإداري كامل لأعمالهم.', 'مستشار متاح دائماً للرد على الاستفسارات.', 'حل النزاعات بأقل وقت وتكلفة.'],
+    },
+    uniqueSellingProposition: `في ${name} نضع بين يديك خبرة سنوات في تقديم الحلول القانونية والمالية باحترافية وسرية مطلقة.`,
+    recommendedPostingSchedule: 'يومياً بين 10:00 صباحاً حتى 2:00 ظهراً، ومن 6:00 حتى 8:30 مساءً.',
+    suggestedColors: { primary: '#1e293b', secondary: '#0369a1', accent: '#d97706' },
+  };
+
+  const calendar = buildGenericDomainCalendar(name, cat, city, 'corporate');
+  const readyPosts = buildGenericDomainPosts(name, cat, city, 'corporate');
+  const whatsappCampaigns = buildGenericDomainWhatsApp(name, cat, city, 'corporate');
+  return { persona, calendar, readyPosts, whatsappCampaigns };
+}
+
+// ----------------------------------------------------
+// 7. EDUCATION & ACADEMIES STRATEGY
+// ----------------------------------------------------
+function generateEducationStrategy(
+  name: string,
+  cat: string,
+  city: string,
+  tone: MarketingTone
+): {
+  persona: MarketingPersona;
+  calendar: ContentCalendarDay[];
+  readyPosts: ReadySocialPost[];
+  whatsappCampaigns: WhatsAppCampaign[];
+} {
+  const persona: MarketingPersona = {
+    businessName: name,
+    category: cat,
+    slogan: `مع ${name}.. تعليم متطور يبني مهارات المستقبل بتفوق! 🎓🌟`,
+    brandVoice: 'صوت تربوي محفز وداعم، يركز على التطوير العملي، رعاية المواهب، وبناء الثقة بالنفس.',
+    toneOfVoice: tone,
+    targetAudience: {
+      demographics: `أولياء الأمور، الطلاب، والشباب الراغبين في التعلم وتطوير المهارات في ${city}.`,
+      painPoints: ['ضعف التحصيل والأساليب التقليدية المملة.', 'عدم وجود كادر تدريسي مؤهل.', 'ارتفاع تكاليف الكورسات دون فائدة حقيقية.'],
+      desires: ['تطور ملحوظ في مستوى الطالب وثقته بنفسه.', 'بيئة تفاعلية حديثة وممتعة.', 'شهادات معتمدة ومتابعة دورية للتقدم.'],
+    },
+    uniqueSellingProposition: `في ${name} نعتمد أحدث مناهج التعليم التفاعلي وكادراً متميزاً يضمن أفضل النتائج لجميع الملتحقين.`,
+    recommendedPostingSchedule: 'يومياً بين 12:00 ظهراً حتى 3:00 عصراً، ومن 7:00 حتى 9:30 مساءً.',
+    suggestedColors: { primary: '#4338ca', secondary: '#059669', accent: '#f59e0b' },
+  };
+
+  const calendar = buildGenericDomainCalendar(name, cat, city, 'education');
+  const readyPosts = buildGenericDomainPosts(name, cat, city, 'education');
+  const whatsappCampaigns = buildGenericDomainWhatsApp(name, cat, city, 'education');
+  return { persona, calendar, readyPosts, whatsappCampaigns };
+}
+
+// ----------------------------------------------------
+// 8. REAL ESTATE STRATEGY
+// ----------------------------------------------------
+function generateRealEstateStrategy(
+  name: string,
+  cat: string,
+  city: string,
+  tone: MarketingTone
+): {
+  persona: MarketingPersona;
+  calendar: ContentCalendarDay[];
+  readyPosts: ReadySocialPost[];
+  whatsappCampaigns: WhatsAppCampaign[];
+} {
+  const persona: MarketingPersona = {
+    businessName: name,
+    category: cat,
+    slogan: `مع ${name}.. شقة العمر وفرصتك الاستثمارية الأضمن في أفضل المواقع! 🏢🔑`,
+    brandVoice: 'صوت استثماري واثق وناصح أمين، يركز على القيمة العقارية، وضوح الأوراق، وسهولة السداد.',
+    toneOfVoice: tone,
+    targetAudience: {
+      demographics: `المقبلون على الزواج، الباحثون عن سكن راقٍ، والمستثمرون في ${city}.`,
+      painPoints: ['الخوف من المشروعات غير المرخصة أو تأخر الاستلام.', 'شروط السداد الصعبة والفوائد المرتفعة.'],
+      desires: ['وحدة عقارية مرخصة ومضمونة في موقع استراتيجي.', 'أنظمة تقسيط مرنة بدون تعقيدات.'],
+    },
+    uniqueSellingProposition: `في ${name} نقدم لك أفضل المشروعات العقارية المعتمدة مع تسهيلات في السداد وأعلى عائد استثماري.`,
+    recommendedPostingSchedule: 'يومياً بين 5:00 حتى 9:30 مساءً.',
+    suggestedColors: { primary: '#1e3a8a', secondary: '#0d9488', accent: '#f59e0b' },
+  };
+
+  const calendar = buildGenericDomainCalendar(name, cat, city, 'real_estate');
+  const readyPosts = buildGenericDomainPosts(name, cat, city, 'real_estate');
+  const whatsappCampaigns = buildGenericDomainWhatsApp(name, cat, city, 'real_estate');
+  return { persona, calendar, readyPosts, whatsappCampaigns };
+}
+
+// ----------------------------------------------------
+// 9. FITNESS & SPORTS STRATEGY
+// ----------------------------------------------------
+function generateFitnessStrategy(
+  name: string,
+  cat: string,
+  city: string,
+  tone: MarketingTone
+): {
+  persona: MarketingPersona;
+  calendar: ContentCalendarDay[];
+  readyPosts: ReadySocialPost[];
+  whatsappCampaigns: WhatsAppCampaign[];
+} {
+  const persona: MarketingPersona = {
+    businessName: name,
+    category: cat,
+    slogan: `مع ${name}.. لياقتك وقوتك في أفضل فورمة تبدأ من هنا! 🏋️‍♂️🔥`,
+    brandVoice: 'صوت حماسي ملهم، ينبض بالطاقة الإيجابية، ويدفعك لتحقيق أهدافك والالتزام بنمط حياة صحي.',
+    toneOfVoice: tone,
+    targetAudience: {
+      demographics: `الشباب والرياضيون وكل من يرغب في تحسين صحته ولياقته في ${city}.`,
+      painPoints: ['الملل والتراجع بعد فترة قصيرة.', 'عدم وجود إشراف مدربين مؤهلين.', 'أجهزة قديمة أو زحمة قاعات التدريب.'],
+      desires: ['جسم مثالي وقوة بدنية وصحة مستدامة.', 'برامج تدريب وتغذية مخصصة ومتابعة مستمرة.', 'قاعة مجهزة بأحدث الأجهزة الرياضية.'],
+    },
+    uniqueSellingProposition: `في ${name} نوفر أحدث المعدات الرياضية العالمية ومدربين معتمدين يرافقونك في كل خطوة لتحقيق هدفك.`,
+    recommendedPostingSchedule: 'يومياً بين 8:00 صباحاً و 11:00 صباحاً، ومن 6:00 مساءً حتى 10:00 مساءً.',
+    suggestedColors: { primary: '#dc2626', secondary: '#1e293b', accent: '#eab308' },
+  };
+
+  const calendar = buildGenericDomainCalendar(name, cat, city, 'fitness');
+  const readyPosts = buildGenericDomainPosts(name, cat, city, 'fitness');
+  const whatsappCampaigns = buildGenericDomainWhatsApp(name, cat, city, 'fitness');
+  return { persona, calendar, readyPosts, whatsappCampaigns };
+}
+
 // 5. GENERAL & RETAIL DOMAIN STRATEGY
 // ----------------------------------------------------
 function generateGeneralStrategy(
@@ -743,11 +970,66 @@ function generateGeneralStrategy(
 }
 
 // Helpers for generic/auto/beauty/dining
-function buildGenericDomainCalendar(name: string, cat: string, city: string, type: 'car' | 'beauty' | 'dining' | 'general'): ContentCalendarDay[] {
+function buildGenericDomainCalendar(
+  name: string,
+  cat: string,
+  city: string,
+  type: 'car' | 'beauty' | 'dining' | 'contracting' | 'corporate' | 'education' | 'real_estate' | 'fitness' | 'general'
+): ContentCalendarDay[] {
   const days: ContentCalendarDay[] = [];
   const pillars: ContentPillarType[] = ['engagement', 'showcase', 'offers', 'social_proof'];
 
   const typeConfig = {
+    contracting: {
+      hookEng: 'بتفكر تشطب بيتك أو تجدد مكتبك ومحتار تبدأ منين؟ 🏗️📐',
+      bodyEng: `التشطيب والديكور مش بس شكل حلو، ده توزيع مساحات وجودة خامات تدوم سنين! في ${name} بنحول فكرتك لواقع هندسي مدروس في ${city}.`,
+      hookShow: 'الفرق في الفينش النهائي وإتقان أدق التفاصيل في مشاريعنا! ✨🏛️',
+      bodyShow: `فريق المهندسين والفنيين في ${name} بيضمن لك استلام على المفتاح بأعلى معايير الجودة وبالمواصفات المتفق عليها.`,
+      hookOff: 'معاينة ومقايسة وتصميم هندسي بخصم خاص جداً هذا الشهر! 🎁',
+      bodyOff: `ابدأ مشروع تشطيبك مع ${name} واستفد من باقات الدفع الميسرة والاستشارة الهندسية المجانية.`,
+      hookSoc: 'استلام عميلنا لوحدته وسعادته بالفينش الراقي هي أكبر نجاح لينا! 🌟',
+      bodySoc: `ثقة عملائنا في التزامنا بالمواعيد وجودة التنفيذ هي رأس مالنا الحقيقي على منصة دليلك.`,
+    },
+    corporate: {
+      hookEng: 'أمان أعمالك وسلامة موقفك القانوني والمالي هما أساس استقرارك! ⚖️💼',
+      bodyEng: `في عالم الأعمال السريع، خطوة قانونية أو مالية مدروسة بتحميك من مخاطر كبيرة. في ${name} نقدم لك الاستشارة الموثوقة والحلول المحترفة.`,
+      hookShow: 'خبرة فريقنا واحترافية التعامل مع كافة الملفات بدقة وسرية! 📜🔍',
+      bodyShow: `نلتزم في ${name} بأعلى معايير السرية التامة، الدقة المتناهية، والالتزام بأحدث اللوائح والأنظمة المعمول بها.`,
+      hookOff: 'جلسة استشارة ومراجعة مبدئية لملفك بخصم خاص لأصحاب الأعمال! 🤝',
+      bodyOff: `بادر بحجز استشارتك مع نخبة خبرائنا في ${name} لتأمين أعمالك وحماية حقوقك في ${city}.`,
+      hookSoc: 'نجاح شركائنا وثقتهم المستمرة في خدماتنا هي شهادة فخر نعتز بها! ⭐',
+      bodySoc: `شكراً لكل مؤسسة ورجل أعمال منحنا ثقته لإدارة واستشارات أعماله باحترافية.`,
+    },
+    education: {
+      hookEng: 'مستقبل أولادك وتطوير مهاراتهم بيبدأ من المكان الصح! 🎓📚',
+      bodyEng: `التعليم وتطوير الشغف مش حفظ وتلقين، ده بيئة محفزة وأساليب حديثة بتصنع فارق حقيقي. في ${name} نضع نجاح كل طالب ومستواه في أولوياتنا.`,
+      hookShow: 'كواليس الحصص التدريبية والأنشطة التفاعلية داخل قاعاتنا! 💡🌟',
+      bodyShow: `مع كادر تعليمي وتدريبي معتمد ومناهج متطورة، نضمن في ${name} تحقيق أعلى النتائج وبناء الثقة بالنفس.`,
+      hookOff: 'فتح باب الحجز والاشتراك مع خصم خاص على الكورسات والباقات! 🎁',
+      bodyOff: `سجل الآن في ${name} واستفد من عروض التقديم المبكر للأخوة والباقات السنوية في ${city}.`,
+      hookSoc: 'فرحة أولياء الأمور وتفوق طلابنا هي أروع ثمرة لجهودنا! 👏👑',
+      bodySoc: `شهادات التقدير والتقييمات الإيجابية على خرائط جوجل تدفعنا دائماً لتقديم الأفضل.`,
+    },
+    real_estate: {
+      hookEng: 'بتدور على فرصة استثمار عقاري مضمونة أو شقة العمر؟ 🏢🔑',
+      bodyEng: `العقار هو الملاذ الآمن للاستثمار، والموقع الاستراتيجي هو سر مضاعفة العائد! في ${name} بنقدملك أفضل الخيارات والفرص في السوق.`,
+      hookShow: 'استعراض أحدث المشروعات والوحدات المتميزة المتاحة الآن! 🌆✨',
+      bodyShow: `تصميمات عصرية، مواقع حيوية، وتسهيلات سداد تناسب خططك المالية داخل ${city}.`,
+      hookOff: 'عرض الدفعة المقدمة المخفضة وأطول فترة سداد هذا الموسم! 🏷️',
+      bodyOff: `احجز وحدتك مع ${name} بأقل مقدم وأقساط مريحة تناسب ميزانيتك، تواصل معنا لمعاينة الموقع.`,
+      hookSoc: 'تسليم الوحدات وثقة المشترين في وعودنا هي عنوان تميزنا! 🌟',
+      bodySoc: `فخورون بآراء شركائنا وعملائنا الكرام على منصة دليلك وخرائط جوجل.`,
+    },
+    fitness: {
+      hookEng: 'طاقتك وصحتك البدنية هي اللي بتحدد إنتاجيتك ومودك كل يوم! 🏋️‍♂️🔥',
+      bodyEng: `الهدف مش بس شكل وجسم رياضي، الهدف صحة وقوة ونشاط يستمر معاك. في ${name} نوفرلك أحدث الأجهزة والبرامج الرياضية.`,
+      hookShow: 'حماس التدريب وكواليس الجلسات مع نخبة المدربين المحترفين! 💪⚡',
+      bodyShow: `متابعة دورية للقياسات، خطط تغذية وتدريب مخصصة لهدفك، وبيئة حماسية تشجعك على الاستمرار.`,
+      hookOff: 'اشتراك الـ 3 شهور أو السنة بأقوى خصم حصري هذا الأسبوع! 🎁',
+      bodyOff: `ابدأ رحلة التغيير واستفد من عروض الاشتراكات الخاصة داخل ${name} في ${city}.`,
+      hookSoc: 'قصص تحول أبطالنا وفقدان الوزن وبناء اللياقة هي أكبر فخر لينا! 👑👏',
+      bodySoc: `شكراً لكل مشترك شاركنا تجربته وتقييمه الإيجابي على خرائط جوجل.`,
+    },
     car: {
       hookEng: 'بتهتم بعربيتك بنفسك ولا بتسيبها على الله؟ 🚗',
       bodyEng: `في ${name} بنفكرك: لمعان ونظافة سيارتك بتفرق في نفسيتك وعمر دهانها! إيه أول حاجة بتنظفها في عربيتك؟`,
@@ -779,14 +1061,14 @@ function buildGenericDomainCalendar(name: string, cat: string, city: string, typ
       bodySoc: `ثقتكم في طعامنا ونظافتنا وتقييماتكم على جوجل هي رأس مالنا الحقيقي.`,
     },
     general: {
-      hookEng: 'إيه أكتر حاجة بتدور عليها لما تختار مكان تتعامل معاه؟ 🧐',
-      bodyEng: `في ${name} بنؤمن إن الثقة والوضوح هما أساس أي علاقة نجاح مع عملائنا.`,
-      hookShow: 'كواليس شغلنا واهتمامنا بأدق التفاصيل عشانك! 💼✨',
-      bodyShow: `بنقدملك حلول وخدمات معتمدة ومضمونة بنسبة 100% لتوفير وقتك ومجهودك.`,
-      hookOff: 'عرض التوفير الخاص لجميع متابعي صفحتنا! 🏷️',
-      bodyOff: `استفد من باقاتنا الخاصة وأسعارنا التنافسية لفترة محدودة.`,
-      hookSoc: 'شهادة نعتز بيها من عملائنا الكرام وشركاء النجاح! 🌟',
-      bodySoc: `شكراً لدعمكم الدائم وثقتكم الغالية في ${name} على منصة دليلك.`,
+      hookEng: `إيه أهم ميزة بتدور عليها لما تختار أفضل خدمة في مجال ${cat}؟ 🌟`,
+      bodyEng: `في ${name} نؤمن بأن المصداقية والجودة العالية هما جوهر نجاحنا وخدمتنا لعملائنا في ${city}.`,
+      hookShow: `كواليس العمل والالتزام بأعلى معايير الإتقان داخل ${name}! 💼✨`,
+      bodyShow: `نحرص دائماً على تقديم خدمات وحلول ${cat} بمواصفات معتمدة توفر وقتك وجهدك.`,
+      hookOff: `عرض استثنائي ومزايا حصرية لعملائنا الكرام في ${city}! 🏷️`,
+      bodyOff: `استفد الآن من باقاتنا التنافسية في ${cat} لفترة محدودة، وتواصل معنا لحجز خدمتك.`,
+      hookSoc: `ثقة عملائنا وشركاء النجاح هي أكبر وسام فخر نعتز به دائماً! ⭐⭐⭐⭐⭐`,
+      bodySoc: `شكراً لدعمكم المستمر وتقييماتكم الصادقة لـ ${name} على خرائط جوجل ومنصة دليلك.`,
     },
   }[type];
 
