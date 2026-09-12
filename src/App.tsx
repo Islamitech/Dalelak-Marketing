@@ -68,9 +68,11 @@ export function App() {
     const saved = await loadActivityProgress(business.id);
     if (saved && saved.calendar && saved.calendar.length > 0) {
       setProgress(saved);
+      setIsAiLive(saved.source === 'gemini-ai');
     } else {
       // Do NOT auto-generate; wait for user explicit click
       setProgress(null);
+      setIsAiLive(isGeminiKeyConfigured());
     }
   };
 
@@ -100,12 +102,15 @@ export function App() {
         readyPosts: result.readyPosts,
         whatsappCampaigns: result.whatsappCampaigns,
         isPromotedToCore: progress?.isPromotedToCore || false,
+        source: result.source,
+        errorDetails: result.errorDetails,
+        modelUsed: result.modelUsed,
       };
 
       setProgress(newProgress);
       await saveActivityProgress(newProgress);
       
-      setIsAiLive(isGeminiKeyConfigured());
+      setIsAiLive(result.source === 'gemini-ai');
     } catch (err) {
       console.error('Generation error:', err);
     } finally {
@@ -232,6 +237,9 @@ export function App() {
               onGeneratePlan={() => handleGeneratePlan()}
               isGenerating={isGenerating}
               hasExistingPlan={Boolean(progress && progress.calendar && progress.calendar.length > 0)}
+              source={progress?.source}
+              errorDetails={progress?.errorDetails}
+              modelUsed={progress?.modelUsed}
             />
 
             {/* If no plan generated yet for this business and not currently generating */}

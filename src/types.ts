@@ -101,6 +101,9 @@ export interface EcosystemActivityProgress {
   isPromotedToCore: boolean;
   promotedAt?: string;
   notes?: string;
+  source?: 'gemini-ai' | 'smart-egyptian-engine';
+  errorDetails?: string;
+  modelUsed?: string;
 }
 
 export interface ServerConfig {

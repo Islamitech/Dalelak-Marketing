@@ -97,13 +97,13 @@ export const Header: React.FC<HeaderProps> = ({
               <span
                 className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border ${
                   isAiLive
-                    ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                    : 'bg-slate-100 text-slate-700 border-slate-200'
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
                 }`}
-                title="محرك الذكاء الاصطناعي Google Gemini"
+                title={isAiLive ? 'توليد ذكاء اصطناعي مباشر عبر Google Gemini' : 'يعمل حالياً عبر المحرك التخصصي الاحتياطي'}
               >
                 <Bot className="w-3.5 h-3.5" />
-                <span>{isAiLive ? 'ذكاء Gemini مفعل' : 'المحرك الذكي الاحتياطي'}</span>
+                <span>{isAiLive ? 'ذكاء Gemini مباشر' : 'المحرك التخصصي الاحتياطي'}</span>
               </span>
             </div>
 

@@ -9,7 +9,7 @@ import {
   CheckCircle2,
   Calendar,
   Sparkles,
-  Share2,
+  AlertTriangle,
 } from 'lucide-react';
 import { DalilakBusiness } from '../types';
 
@@ -19,6 +19,9 @@ interface BusinessOverviewCardProps {
   onGeneratePlan: () => void;
   isGenerating: boolean;
   hasExistingPlan: boolean;
+  source?: 'gemini-ai' | 'smart-egyptian-engine';
+  errorDetails?: string;
+  modelUsed?: string;
 }
 
 export const BusinessOverviewCard: React.FC<BusinessOverviewCardProps> = ({
@@ -27,6 +30,9 @@ export const BusinessOverviewCard: React.FC<BusinessOverviewCardProps> = ({
   onGeneratePlan,
   isGenerating,
   hasExistingPlan,
+  source,
+  errorDetails,
+  modelUsed,
 }) => {
   const locationString = [business.governorate, business.city, business.street, business.landmark]
     .filter(Boolean)
@@ -119,6 +125,26 @@ export const BusinessOverviewCard: React.FC<BusinessOverviewCardProps> = ({
                 </a>
               )}
             </div>
+
+            {/* AI Source & Generation Status Badge */}
+            {hasExistingPlan && (
+              <div className="flex items-center gap-2 pt-1.5 flex-wrap">
+                {source === 'gemini-ai' ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>توليد ذكاء اصطناعي مباشر ({modelUsed || 'Google Gemini'})</span>
+                  </span>
+                ) : (
+                  <span
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-800 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200"
+                    title={errorDetails}
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                    <span>النمط المحلي التخصصي الاحتياطي {errorDetails ? `(${errorDetails})` : ''}</span>
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

@@ -1,13 +1,17 @@
-import { GoogleGenAI } from '@google/genai';
 import {
   ContentCalendarDay,
+  ContentPillarType,
   MarketingPersona,
   MarketingTone,
   ReadySocialPost,
   WhatsAppCampaign,
 } from '../types';
-import { generateCategoryAwareLocalStrategy, MARKETING_TONES } from '../utils/egyptianDialectPrompts';
-import { getServerConfig, isGeminiKeyConfigured } from './dalilakService';
+import {
+  generateCategoryAwareLocalStrategy,
+  MARKETING_TONES,
+  CONTENT_PILLARS_METADATA,
+} from '../utils/egyptianDialectPrompts';
+import { getAvailableGeminiKeys } from './dalilakService';
 
 export interface GenerateMarketingPlanOptions {
   businessName: string;
@@ -26,17 +30,30 @@ export interface GeneratedMarketingPlanResult {
   whatsappCampaigns: WhatsAppCampaign[];
   source: 'gemini-ai' | 'smart-egyptian-engine';
   errorDetails?: string;
+  modelUsed?: string;
 }
 
 /**
- * Call Gemini REST endpoint with timeout and candidate models
+ * Active models priority list:
+ * gemini-3.5-flash and gemini-flash-latest have full active quota,
+ * while gemini-3.6-flash is in fallback if quota allows.
+ */
+export const ACTIVE_GEMINI_MODELS = [
+  'gemini-3.5-flash',
+  'gemini-flash-latest',
+  'gemini-3.6-flash',
+  'gemini-flash-lite-latest',
+];
+
+/**
+ * Call Gemini REST endpoint with timeout, thinking token suppression for speed, and candidate models
  */
 async function callGeminiRestApi(
   apiKey: string,
   model: string,
   prompt: string,
-  timeoutMs = 12000
-): Promise<string | null> {
+  timeoutMs = 45000
+): Promise<{ text: string | null; error?: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -48,8 +65,12 @@ async function callGeminiRestApi(
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.75,
+          temperature: 0.7,
           responseMimeType: 'application/json',
+          maxOutputTokens: 8192,
+          thinkingConfig: {
+            thinkingBudget: 0, // Suppress hidden thinking tokens for maximum speed and to prevent token limit cuts
+          },
         },
       }),
       signal: controller.signal,
@@ -57,15 +78,80 @@ async function callGeminiRestApi(
 
     clearTimeout(timer);
     if (!res.ok) {
-      console.warn(`Gemini REST error ${res.status}:`, await res.text());
-      return null;
+      const errBody = await res.text();
+      let errorMsg = `HTTP ${res.status}`;
+      try {
+        const parsed = JSON.parse(errBody);
+        if (parsed?.error?.message) errorMsg = parsed.error.message;
+      } catch (_) {}
+      console.warn(`Gemini API error (${model} - ${res.status}):`, errorMsg);
+      return { text: null, error: `[${model}]: ${errorMsg}` };
     }
+
     const data = await res.json();
-    return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
-  } catch (e) {
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    return { text, error: text ? undefined : 'لم يرجع النموذج أي محتوى نصي' };
+  } catch (e: any) {
     clearTimeout(timer);
-    return null;
+    const msg = e.name === 'AbortError' ? 'انتهت مهلة استجابة Gemini (45 ثانية)' : (e.message || String(e));
+    return { text: null, error: msg };
   }
+}
+
+/**
+ * Ensures the calendar contains exactly 30 days by building upon the AI generated days
+ */
+function completeFullMonthCalendar(
+  days: ContentCalendarDay[],
+  businessName: string
+): ContentCalendarDay[] {
+  if (!Array.isArray(days) || days.length === 0) return [];
+  if (days.length >= 30) return days.slice(0, 30);
+
+  const pillarsOrder: ContentPillarType[] = ['engagement', 'showcase', 'offers', 'social_proof'];
+  const fullCalendar: ContentCalendarDay[] = [...days];
+
+  for (let d = days.length + 1; d <= 30; d++) {
+    const sourceIndex = (d - 1) % days.length;
+    const sourceDay = days[sourceIndex];
+    const targetPillar = pillarsOrder[(d - 1) % pillarsOrder.length];
+
+    let headline = sourceDay.headline;
+    let hookText = sourceDay.hookText;
+    let bodyText = sourceDay.bodyText;
+    let cta = sourceDay.callToAction;
+
+    // Add weekly evolution touches for the second half of the month
+    if (d > 15) {
+      if (targetPillar === 'engagement') {
+        headline = `سؤال وتفاعل الأسبوع: ${sourceDay.headline}`;
+        hookText = `شاركونا رأيكم وتجاربكم مع ${businessName}: ${sourceDay.hookText}`;
+      } else if (targetPillar === 'showcase') {
+        headline = `كواليس الجودة والتميز: ${sourceDay.headline}`;
+      } else if (targetPillar === 'offers') {
+        headline = `فرصة حجز مميزة: ${sourceDay.headline}`;
+        cta = `بادر بالتواصل مع ${businessName} الآن واحجز موعدك!`;
+      } else {
+        headline = `قصة نجاح وثقة متبادلة: ${sourceDay.headline}`;
+      }
+    }
+
+    fullCalendar.push({
+      day: d,
+      pillar: targetPillar,
+      pillarTitle: CONTENT_PILLARS_METADATA[targetPillar]?.title || sourceDay.pillarTitle,
+      headline,
+      hookText,
+      bodyText,
+      callToAction: cta,
+      visualDirection: sourceDay.visualDirection,
+      hashtags: sourceDay.hashtags || [`#${businessName.replace(/\s+/g, '_')}`],
+      bestTimeToPost: d % 2 === 0 ? '7:00 مساءً' : '8:30 مساءً',
+      isCompleted: false,
+    });
+  }
+
+  return fullCalendar;
 }
 
 /**
@@ -75,16 +161,13 @@ export async function generateComprehensiveMarketingPlan(
   options: GenerateMarketingPlanOptions
 ): Promise<GeneratedMarketingPlanResult> {
   const { businessName, category, city = 'مصر', tone, description, focusKeywords, customNotes } = options;
-  const config = getServerConfig();
-  const apiKey = (config.geminiKey || '').trim();
-
+  const availableKeys = getAvailableGeminiKeys();
   const selectedTone = MARKETING_TONES.find((t) => t.id === tone) || MARKETING_TONES[0];
 
-  if (apiKey && apiKey.length > 20) {
-    try {
-      const prompt = `
+  if (availableKeys.length > 0) {
+    const prompt = `
 أنت كبير مديري التسويق الرقمي وكتاب الإعلانات (Senior Marketing Director & Lead Copywriter) في مصر.
-مهمتك: دراسة هذا النشاط التجاري بدقة شديدة وتوليد خطة تسويقية شهرية كاملة (30 يوماً) واستراتيجية هوية مخصصة له 100% دون أي قوالب مسبقة أو عبارات عامة.
+مهمتك: دراسة هذا النشاط التجاري بدقة شديدة وتوليد هوية تسويقية متكاملة وخطة محتوى ذكية شهرية ونصوص جاهزة للنشر مخصصة له 100% دون أي قوالب مسبقة أو عبارات عامة.
 
 📌 بيانات المنشأة الحقيقية:
 - اسم المنشأة: "${businessName}"
@@ -97,19 +180,20 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
 
 ⛔ قواعد إلزامية صارمة في الصياغة (STRICT DOMAIN RULES):
 1. **التخصص الدقيق 100% بحسب نوع النشاط**:
-   - إذا كان النشاط **طبي أو صحي أو عيادة أو علاج طبيعي أو تأهيل أو أسنان**: كل النصوص، الهوكات، النصائح، والمنشورات يجب أن تدور حصرياً حول صحة المريض، تخفيف الآلام (مثل آلام الظهر، الرقبة، الانزلاق الغضروفي، تأهيل ما بعد العمليات والإصابات)، أحدث أجهزة العلاج الطبيعي واليدوي، نصائح الجلوس والحركة، كفاءة الطاقم الطبي، والراحة النفسية للمراجعين. **يُحظر تماماً ذكر أي كلمات تتعلق بالأكل أو الوجبات أو الطعم أو المنتجات الاستهلاكية!**
+   - إذا كان النشاط **أطراف صناعية أو أجهزة تعويضية أو مستلزمات طبية أو علاج طبيعي أو تأهيل أو صحي**:
+     كل النصوص، الهوكات، والنصائح يجب أن تدور حصرياً حول استعادة الحركة، أحدث الأطراف الذكية والهيدروليكية، الأجهزة التعويضية المعتمدة، الجبائر والدعامات، قصص التحدي والأمل، دقة المقاسات، التدريب والتأهيل والمتابعة، وراحة المراجعين.
+     **يُحظر تماماً ذكر أي طعام أو كافيهات أو مطاعم أو منتجات استهلاكية عامة!**
    - إذا كان النشاط **مطعم أو كافيه**: تدور النصوص حول النكهات، الطعم، جودة المكونات الطازجة، واللمة.
    - إذا كان النشاط **سيارات**: تدور حول الحماية، النظافة الفائقة، ولمعان النانو سيراميك.
    - إذا كان النشاط **تجميل وصالون**: تدور حول الإطلالة، العناية بالشعر والبشرة.
 2. **اللهجة المصرية الذكية والمحبوبة**:
-   - اكتب بالعامية المصرية الراقية المقنعة والمؤثرة، مع استخدام تعبيرات طبيعية ذكية تعكس مصداقية المنشأة وتشجع العميل على الحجز والتواصل.
-3. **توزيع الركائز الأربع على مدار الـ 30 يوماً بالتناوب**:
-   - engagement: أسئلة، توعية طبية/تخصصية، استشارات سريعة، نصائح ذهبية للجمهور.
-   - showcase: استعراض الأجهزة، التقنيات، كواليس التعقيم والرعاية، خبرات الفريق.
-   - offers: باقات حجز، كشف وفحص، استشارة أولى، عروض مميزة مع نداء عمل مباشر.
-   - social_proof: تجارب تعافي ورضا المرضى/العملاء، شهادات ثقة، تقييمات خرائط جوجل.
+   - اكتب بالعامية المصرية الراقية المقنعة والمؤثرة، مع استخدام تعبيرات طبيعية تعكس مصداقية المنشأة وتشجع العميل على التواصل.
+3. **التوازن بين الركائز الأربع**:
+   - التناوب بين: engagement (تفاعلي)، showcase (استعراض)، offers (عروض وحجز)، social_proof (ثقة وتجارب).
+4. **نظام التقسيم المحكم**:
+   - اكتب أول 15 يوماً متكاملة وغنية ومفصلة في مصفوفة calendar، واجعل النصوص بليغة ومركزة لضمان كمال كود الـ JSON بالكامل دون انقطاع.
 
-أجب بصيغة JSON حصراً بدون أي كود ماركداون خارجي، بالهيكل التالي:
+أجب بصيغة JSON حصراً بدون أي نصوص أو كود ماركداون خارجي، بالهيكل التالي:
 {
   "persona": {
     "businessName": "${businessName}",
@@ -119,7 +203,7 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
     "toneOfVoice": "${tone}",
     "targetAudience": {
       "demographics": "من هم جمهور هذا النشاط بالتحديد في ${city}",
-      "painPoints": ["المشكلة الحقيقية 1 التي يعاني منها المريض/العميل", "المشكلة 2", "المشكلة 3"],
+      "painPoints": ["نقطة ألم حقيقية 1", "نقطة 2", "نقطة 3"],
       "desires": ["النتيجة التي يتمناها العميل 1", "النتيجة 2", "النتيجة 3"]
     },
     "uniqueSellingProposition": "ما الذي يجعل هذا النشاط أفضل من أي منافس آخر في مجاله",
@@ -137,7 +221,7 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
       "pillarTitle": "تفاعلي وتوعية متخصصة",
       "headline": "عنوان جذاب يخص هذا المجال تحديداً",
       "hookText": "جملة افتتاحية تخطف انتباه الجمهور المستهدف لهذا النشاط",
-      "bodyText": "نص المنشور الكامل باللهجة المصرية المتقنة ذات الصلة التامة بالنشاط",
+      "bodyText": "نص المنشور بالعامية المصرية المتقنة ذات الصلة التامة بالنشاط",
       "callToAction": "نداء العمل المناسب (حجز موعد، اتصال، استشارة)",
       "visualDirection": "فكرة الصورة أو الفيديو المناسبة تماماً للمنشأة",
       "hashtags": ["#هاشتاج1", "#هاشتاج2"],
@@ -150,7 +234,7 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
       "platform": "facebook",
       "title": "منشور فيسبوك الترويجي الرئيسي للنشاط",
       "badge": "📘 فيسبوك",
-      "content": "نص المنشور الكامل...",
+      "content": "نص المنشور الكامل بالعامية المصرية...",
       "hashtags": ["#..."],
       "imageIdea": "فكرة التصميم..."
     },
@@ -178,9 +262,9 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
       "id": "wa-1",
       "title": "رسالة حجز واستفسار ترحيبية",
       "categoryTag": "استفسار جديد",
-      "targetAudience": "المرضى / العملاء الذين استفسروا عبر الواتساب",
+      "targetAudience": "العملاء الذين استفسروا عبر الواتساب",
       "messageText": "نص الرسالة المناسب تماماً لمجال المنشأة...",
-      "intendedGoal": "تأكيد الحجز المباشر"
+      "intendedGoal": "تأكيد الحجز والاستشارة"
     },
     {
       "id": "wa-2",
@@ -197,59 +281,68 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
       "targetAudience": "العميل الراضي بعد نجاح خدمته",
       "messageText": "نص الرسالة...",
       "intendedGoal": "تقييم 5 نجوم على Google Maps"
-    },
-    {
-      "id": "wa-4",
-      "title": "عرض الباقة التسويقية لصاحب النشاط",
-      "categoryTag": "إغلاق بيعي (B2B)",
-      "targetAudience": "لصاحب المنشأة",
-      "messageText": "نص الرسالة...",
-      "intendedGoal": "عرض خدمات دليلك التسويقية"
     }
   ]
 }
 `;
 
-      let jsonText: string | null = null;
+    let lastError = '';
 
-      // Try SDK first with modern models
-      try {
-        const ai = new GoogleGenAI({ apiKey });
-        const response = await ai.models.generateContent({
-          model: 'gemini-3.6-flash',
-          contents: prompt,
-          config: { responseMimeType: 'application/json' },
-        });
-        jsonText = response.text || null;
-      } catch (sdkErr: any) {
-        console.warn('Gemini SDK direct call failed, trying REST fallback:', sdkErr?.message);
-        const candidateModels = ['gemini-3.6-flash', 'gemini-3.7-flash', 'gemini-3.5-flash', 'gemini-flash-latest'];
-        for (const model of candidateModels) {
-          jsonText = await callGeminiRestApi(apiKey, model, prompt, 15000);
-          if (jsonText) break;
+    // Cascade through all available keys and active models
+    for (const key of availableKeys) {
+      for (const model of ACTIVE_GEMINI_MODELS) {
+        try {
+          const { text, error } = await callGeminiRestApi(key, model, prompt, 45000);
+          if (error) {
+            lastError = error;
+            continue;
+          }
+
+          if (text) {
+            let cleaned = text.trim();
+            if (cleaned.startsWith('```json')) cleaned = cleaned.slice(7);
+            if (cleaned.startsWith('```')) cleaned = cleaned.slice(3);
+            if (cleaned.endsWith('```')) cleaned = cleaned.slice(0, -3);
+            cleaned = cleaned.trim();
+
+            const parsed = JSON.parse(cleaned);
+
+            if (parsed?.persona && Array.isArray(parsed?.calendar) && parsed.calendar.length > 0) {
+              const fullCalendar = completeFullMonthCalendar(parsed.calendar, businessName);
+
+              return {
+                persona: parsed.persona,
+                calendar: fullCalendar,
+                readyPosts: parsed.readyPosts || [],
+                whatsappCampaigns: parsed.whatsappCampaigns || [],
+                source: 'gemini-ai',
+                modelUsed: model,
+              };
+            }
+          }
+        } catch (err: any) {
+          console.warn(`Attempt with ${model} failed:`, err?.message);
+          lastError = err?.message || String(err);
         }
       }
-
-      if (jsonText) {
-        const cleaned = jsonText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
-        const parsed = JSON.parse(cleaned);
-
-        if (parsed?.persona && Array.isArray(parsed?.calendar) && parsed.calendar.length > 0) {
-          return {
-            persona: parsed.persona,
-            calendar: parsed.calendar,
-            readyPosts: parsed.readyPosts || [],
-            whatsappCampaigns: parsed.whatsappCampaigns || [],
-            source: 'gemini-ai',
-          };
-        }
-      }
-    } catch (err: any) {
-      console.error('Gemini generation error:', err);
     }
+
+    console.warn('All Gemini keys and models exhausted. Activating domain-aware local strategy. Last error:', lastError);
+    const localData = generateCategoryAwareLocalStrategy(
+      businessName,
+      category,
+      city,
+      tone,
+      description
+    );
+    return {
+      ...localData,
+      source: 'smart-egyptian-engine',
+      errorDetails: `تعذر الاتصال بـ Gemini (${lastError || 'استنفاد المحاولات'})`,
+    };
   }
 
-  // If no key or API failed, use strictly category-aware local intelligence
+  // If no key at all was configured
   const localData = generateCategoryAwareLocalStrategy(
     businessName,
     category,
@@ -260,6 +353,6 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
   return {
     ...localData,
     source: 'smart-egyptian-engine',
-    errorDetails: !apiKey ? 'لم يتم إدخال مفتاح Gemini API' : 'تعذر الاتصال بـ Gemini API',
+    errorDetails: 'لم يتم إدخال مفتاح Gemini API في الإعدادات',
   };
 }
