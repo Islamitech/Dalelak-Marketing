@@ -12,9 +12,12 @@ const STORAGE_ECOSYSTEM_URL = 'dalelak_ecosystem_url';
 const STORAGE_ECOSYSTEM_KEY = 'dalelak_ecosystem_key';
 const STORAGE_GEMINI_KEY = 'dalelak_gemini_key';
 
-// Safely assembled default AI key with runtime decoding
-const _K_B64 = 'QVEuQWI4Uk42SldXY0xRdjQ0blkydlBmQ0hZM0NaTVFGdkxvcXkxVlQ4czlmaC12TVlxc0E=';
-export const DEFAULT_GEMINI_KEY = typeof atob !== 'undefined' ? atob(_K_B64) : '';
+export const DEFAULT_GEMINI_KEY = '';
+
+export function isGeminiKeyConfigured(): boolean {
+  const key = localStorage.getItem(STORAGE_GEMINI_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
+  return typeof key === 'string' && key.trim().startsWith('AIzaSy') && key.trim().length > 25;
+}
 
 export function getServerConfig(): ServerConfig {
   return {

@@ -6,14 +6,15 @@ import {
   ReadySocialPost,
   WhatsAppCampaign,
 } from '../types';
-import { generateLocalEgyptianStrategy, MARKETING_TONES } from '../utils/egyptianDialectPrompts';
-import { getServerConfig } from './dalilakService';
+import { generateCategoryAwareLocalStrategy, MARKETING_TONES } from '../utils/egyptianDialectPrompts';
+import { getServerConfig, isGeminiKeyConfigured } from './dalilakService';
 
 export interface GenerateMarketingPlanOptions {
   businessName: string;
   category: string;
   city?: string;
   tone: MarketingTone;
+  description?: string;
   focusKeywords?: string;
   customNotes?: string;
 }
@@ -24,16 +25,17 @@ export interface GeneratedMarketingPlanResult {
   readyPosts: ReadySocialPost[];
   whatsappCampaigns: WhatsAppCampaign[];
   source: 'gemini-ai' | 'smart-egyptian-engine';
+  errorDetails?: string;
 }
 
 /**
- * Helper to call Gemini REST API with timeout
+ * Call Gemini REST endpoint with timeout and candidate models
  */
 async function callGeminiRestApi(
   apiKey: string,
   model: string,
   prompt: string,
-  timeoutMs = 9000
+  timeoutMs = 12000
 ): Promise<string | null> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -46,7 +48,7 @@ async function callGeminiRestApi(
       body: JSON.stringify({
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
-          temperature: 0.8,
+          temperature: 0.75,
           responseMimeType: 'application/json',
         },
       }),
@@ -54,7 +56,10 @@ async function callGeminiRestApi(
     });
 
     clearTimeout(timer);
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.warn(`Gemini REST error ${res.status}:`, await res.text());
+      return null;
+    }
     const data = await res.json();
     return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
   } catch (e) {
@@ -64,57 +69,61 @@ async function callGeminiRestApi(
 }
 
 /**
- * Generate full comprehensive marketing strategy via Google Gemini with seamless fallback
+ * Generate full comprehensive marketing strategy via Google Gemini with deep domain awareness
  */
 export async function generateComprehensiveMarketingPlan(
   options: GenerateMarketingPlanOptions
 ): Promise<GeneratedMarketingPlanResult> {
-  const { businessName, category, city = 'مصر', tone, focusKeywords, customNotes } = options;
+  const { businessName, category, city = 'مصر', tone, description, focusKeywords, customNotes } = options;
   const config = getServerConfig();
-  const apiKey = config.geminiKey;
+  const apiKey = (config.geminiKey || '').trim();
 
   const selectedTone = MARKETING_TONES.find((t) => t.id === tone) || MARKETING_TONES[0];
 
-  if (apiKey && apiKey.trim().length > 10) {
+  if (apiKey && apiKey.length > 20) {
     try {
       const prompt = `
-أنت خبير استراتيجي أول في التسويق الرقمي وكبير كتاب الإعلانات (Chief Copywriter) في مصر لمنصة "دليلك".
-مهمتك إعداد خطة تسويقية متكاملة واستراتيجية محتوى شهرية (30 يوماً) لنشاط تجاري بالسوق المصري.
+أنت كبير مديري التسويق الرقمي وكتاب الإعلانات (Senior Marketing Director & Lead Copywriter) في مصر.
+مهمتك: دراسة هذا النشاط التجاري بدقة شديدة وتوليد خطة تسويقية شهرية كاملة (30 يوماً) واستراتيجية هوية مخصصة له 100% دون أي قوالب مسبقة أو عبارات عامة.
 
-بيانات المنشأة:
-- اسم النشاط: "${businessName}"
-- التصنيف والنشاط: "${category}"
-- المحافظة أو المدينة: "${city}"
+📌 بيانات المنشأة الحقيقية:
+- اسم المنشأة: "${businessName}"
+- التصنيف الرسمي: "${category}"
+- وصف النشاط والخدمات: "${description || 'نشاط تجاري معتمد يقدم خدمات متخصصة في مجاله'}"
+- النطاق الجغرافي / المدينة: "${city}"
 - نبرة الخطاب المطلوبة: "${selectedTone.name}" (${selectedTone.description})
-${focusKeywords ? `- كلمات وخدمات تركيز: "${focusKeywords}"` : ''}
-${customNotes ? `- ملاحظات إضافية من العميل: "${customNotes}"` : ''}
+${focusKeywords ? `- خدمات أو كلمات تركيز إضافية: "${focusKeywords}"` : ''}
+${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
 
-المطلوب بدقة:
-1. توليد هوية تسويقية متكاملة (شعار رنان باللهجة المصرية، نبرة صوت، الجمهور المستهدف والمخاوف والرغبات، القيمة التنافسية).
-2. جدول محتوى شهري كامل لـ 30 يوماً مقسمة بالتساوي على الركائز الأربع:
-   - engagement (المحتوى التفاعلي والمسابقات)
-   - showcase (استعراض المنتجات والجودة وكواليس العمل)
-   - offers (العروض والخصومات الجبارة مع CTA حاسم)
-   - social_proof (آراء العملاء والتقييمات وشهادات الثقة)
-   لكل يوم: اليوم (1-30)، الركيزة، العنوان، الهوك (الجملة الافتتاحية الخاطفة)، نص البوست باللهجة المصرية الجميلة، نداء العمل (CTA)، فكرة الصورة أو الفيديو، وهاشتاجات.
-3. 3 منشورات جاهزة للنشر الفوري (فيسبوك، إنستغرام، تيك توك ريلز).
-4. 4 رسائل واتساب تسويقية متخصصة (عميل جديد، إعادة تنشيط، طلب تقييم جوجل، رسالة إغلاق بيعي موجهة لصاحب النشاط).
+⛔ قواعد إلزامية صارمة في الصياغة (STRICT DOMAIN RULES):
+1. **التخصص الدقيق 100% بحسب نوع النشاط**:
+   - إذا كان النشاط **طبي أو صحي أو عيادة أو علاج طبيعي أو تأهيل أو أسنان**: كل النصوص، الهوكات، النصائح، والمنشورات يجب أن تدور حصرياً حول صحة المريض، تخفيف الآلام (مثل آلام الظهر، الرقبة، الانزلاق الغضروفي، تأهيل ما بعد العمليات والإصابات)، أحدث أجهزة العلاج الطبيعي واليدوي، نصائح الجلوس والحركة، كفاءة الطاقم الطبي، والراحة النفسية للمراجعين. **يُحظر تماماً ذكر أي كلمات تتعلق بالأكل أو الوجبات أو الطعم أو المنتجات الاستهلاكية!**
+   - إذا كان النشاط **مطعم أو كافيه**: تدور النصوص حول النكهات، الطعم، جودة المكونات الطازجة، واللمة.
+   - إذا كان النشاط **سيارات**: تدور حول الحماية، النظافة الفائقة، ولمعان النانو سيراميك.
+   - إذا كان النشاط **تجميل وصالون**: تدور حول الإطلالة، العناية بالشعر والبشرة.
+2. **اللهجة المصرية الذكية والمحبوبة**:
+   - اكتب بالعامية المصرية الراقية المقنعة والمؤثرة، مع استخدام تعبيرات طبيعية ذكية تعكس مصداقية المنشأة وتشجع العميل على الحجز والتواصل.
+3. **توزيع الركائز الأربع على مدار الـ 30 يوماً بالتناوب**:
+   - engagement: أسئلة، توعية طبية/تخصصية، استشارات سريعة، نصائح ذهبية للجمهور.
+   - showcase: استعراض الأجهزة، التقنيات، كواليس التعقيم والرعاية، خبرات الفريق.
+   - offers: باقات حجز، كشف وفحص، استشارة أولى، عروض مميزة مع نداء عمل مباشر.
+   - social_proof: تجارب تعافي ورضا المرضى/العملاء، شهادات ثقة، تقييمات خرائط جوجل.
 
-أجب بصيغة JSON فقط، بدون أي شروحات خارج الكود، بالهيكل التالي:
+أجب بصيغة JSON حصراً بدون أي كود ماركداون خارجي، بالهيكل التالي:
 {
   "persona": {
     "businessName": "${businessName}",
     "category": "${category}",
-    "slogan": "...",
-    "brandVoice": "...",
+    "slogan": "شعار إعلاني رنان مصاغ خصيصاً لهذا النشاط ومجاله",
+    "brandVoice": "وصف دقيق لنبرة صوت المنشأة وكيف تتحدث مع عملائها في هذا المجال",
     "toneOfVoice": "${tone}",
     "targetAudience": {
-      "demographics": "...",
-      "painPoints": ["...", "..."],
-      "desires": ["...", "..."]
+      "demographics": "من هم جمهور هذا النشاط بالتحديد في ${city}",
+      "painPoints": ["المشكلة الحقيقية 1 التي يعاني منها المريض/العميل", "المشكلة 2", "المشكلة 3"],
+      "desires": ["النتيجة التي يتمناها العميل 1", "النتيجة 2", "النتيجة 3"]
     },
-    "uniqueSellingProposition": "...",
-    "recommendedPostingSchedule": "...",
+    "uniqueSellingProposition": "ما الذي يجعل هذا النشاط أفضل من أي منافس آخر في مجاله",
+    "recommendedPostingSchedule": "المواعيد المثالية للنشر لهذا التخصص",
     "suggestedColors": {
       "primary": "#0284c7",
       "secondary": "#059669",
@@ -125,35 +134,77 @@ ${customNotes ? `- ملاحظات إضافية من العميل: "${customNotes
     {
       "day": 1,
       "pillar": "engagement",
-      "pillarTitle": "تفاعلي ومسابقات وتوعية",
-      "headline": "...",
-      "hookText": "...",
-      "bodyText": "...",
-      "callToAction": "...",
-      "visualDirection": "...",
-      "hashtags": ["#...", "#..."],
+      "pillarTitle": "تفاعلي وتوعية متخصصة",
+      "headline": "عنوان جذاب يخص هذا المجال تحديداً",
+      "hookText": "جملة افتتاحية تخطف انتباه الجمهور المستهدف لهذا النشاط",
+      "bodyText": "نص المنشور الكامل باللهجة المصرية المتقنة ذات الصلة التامة بالنشاط",
+      "callToAction": "نداء العمل المناسب (حجز موعد، اتصال، استشارة)",
+      "visualDirection": "فكرة الصورة أو الفيديو المناسبة تماماً للمنشأة",
+      "hashtags": ["#هاشتاج1", "#هاشتاج2"],
       "bestTimeToPost": "7:00 مساءً"
     }
   ],
   "readyPosts": [
     {
-      "id": "post-fb",
+      "id": "post-fb-real",
       "platform": "facebook",
-      "title": "...",
+      "title": "منشور فيسبوك الترويجي الرئيسي للنشاط",
       "badge": "📘 فيسبوك",
-      "content": "...",
+      "content": "نص المنشور الكامل...",
       "hashtags": ["#..."],
-      "imageIdea": "..."
+      "imageIdea": "فكرة التصميم..."
+    },
+    {
+      "id": "post-ig-real",
+      "platform": "instagram",
+      "title": "منشور إنستغرام بصري ومعلوماتي",
+      "badge": "📸 إنستغرام",
+      "content": "نص المنشور...",
+      "hashtags": ["#..."],
+      "imageIdea": "فكرة التصميم..."
+    },
+    {
+      "id": "post-tt-real",
+      "platform": "tiktok",
+      "title": "سكريبت فيديو ريلز / تيك توك 30 ثانية",
+      "badge": "🎵 تيك توك",
+      "content": "السيناريو المقترح...",
+      "hashtags": ["#..."],
+      "imageIdea": "طريقة التصوير..."
     }
   ],
   "whatsappCampaigns": [
     {
       "id": "wa-1",
-      "title": "...",
-      "categoryTag": "...",
-      "targetAudience": "...",
-      "messageText": "...",
-      "intendedGoal": "..."
+      "title": "رسالة حجز واستفسار ترحيبية",
+      "categoryTag": "استفسار جديد",
+      "targetAudience": "المرضى / العملاء الذين استفسروا عبر الواتساب",
+      "messageText": "نص الرسالة المناسب تماماً لمجال المنشأة...",
+      "intendedGoal": "تأكيد الحجز المباشر"
+    },
+    {
+      "id": "wa-2",
+      "title": "رسالة متابعة ورعاية بعد الجلسة / الخدمة",
+      "categoryTag": "متابعة ورعاية",
+      "targetAudience": "العملاء بعد تلقي الخدمة",
+      "messageText": "نص الرسالة...",
+      "intendedGoal": "بناء ولاء ومتابعة الحالة"
+    },
+    {
+      "id": "wa-3",
+      "title": "رسالة طلب تقييم خرائط جوجل",
+      "categoryTag": "تقييمات وسمعة",
+      "targetAudience": "العميل الراضي بعد نجاح خدمته",
+      "messageText": "نص الرسالة...",
+      "intendedGoal": "تقييم 5 نجوم على Google Maps"
+    },
+    {
+      "id": "wa-4",
+      "title": "عرض الباقة التسويقية لصاحب النشاط",
+      "categoryTag": "إغلاق بيعي (B2B)",
+      "targetAudience": "لصاحب المنشأة",
+      "messageText": "نص الرسالة...",
+      "intendedGoal": "عرض خدمات دليلك التسويقية"
     }
   ]
 }
@@ -161,6 +212,7 @@ ${customNotes ? `- ملاحظات إضافية من العميل: "${customNotes
 
       let jsonText: string | null = null;
 
+      // Try SDK first with standard models
       try {
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
@@ -169,11 +221,11 @@ ${customNotes ? `- ملاحظات إضافية من العميل: "${customNotes
           config: { responseMimeType: 'application/json' },
         });
         jsonText = response.text || null;
-      } catch (sdkErr) {
-        // Fallback to fast REST cascade
-        const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-flash-latest'];
+      } catch (sdkErr: any) {
+        console.warn('Gemini SDK direct call failed, trying REST fallback:', sdkErr?.message);
+        const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
         for (const model of candidateModels) {
-          jsonText = await callGeminiRestApi(apiKey, model, prompt, 8000);
+          jsonText = await callGeminiRestApi(apiKey, model, prompt, 12000);
           if (jsonText) break;
         }
       }
@@ -192,15 +244,22 @@ ${customNotes ? `- ملاحظات إضافية من العميل: "${customNotes
           };
         }
       }
-    } catch (err) {
-      console.warn('Gemini generation encountered an issue, falling back to Egyptian engine:', err);
+    } catch (err: any) {
+      console.error('Gemini generation error:', err);
     }
   }
 
-  // Instant offline fallback to authentic Egyptian strategic engine
-  const localData = generateLocalEgyptianStrategy(businessName, category, city, tone);
+  // If no key or API failed, use strictly category-aware local intelligence
+  const localData = generateCategoryAwareLocalStrategy(
+    businessName,
+    category,
+    city,
+    tone,
+    description
+  );
   return {
     ...localData,
     source: 'smart-egyptian-engine',
+    errorDetails: !apiKey ? 'لم يتم إدخال مفتاح Gemini API' : 'تعذر الاتصال بـ Gemini API',
   };
 }

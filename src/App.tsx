@@ -91,6 +91,7 @@ export function App() {
         category: targetBusiness.category || 'عام',
         city: targetBusiness.city || targetBusiness.governorate || 'مصر',
         tone,
+        description: targetBusiness.description,
       });
 
       const newProgress: EcosystemActivityProgress = {
@@ -106,6 +107,9 @@ export function App() {
 
       setProgress(newProgress);
       await saveActivityProgress(newProgress);
+      
+      const config = getServerConfig();
+      setIsAiLive(Boolean(config.geminiKey && config.geminiKey.startsWith('AIzaSy')));
     } catch (err) {
       console.error('Generation error:', err);
     } finally {
@@ -155,6 +159,51 @@ export function App() {
       {/* Main Studio Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
         
+        {/* Gemini API Key Banner if not connected to live Gemini */}
+        {!isAiLive && (
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 shadow-xs flex flex-col md:flex-row items-start md:items-center justify-between gap-4 animate-in fade-in">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 rounded-xl bg-amber-100 text-amber-800 shrink-0">
+                <Sparkles className="w-5 h-5" />
+              </div>
+              <div className="space-y-0.5">
+                <h4 className="text-sm font-bold text-amber-900">
+                  تفعيل التوليد المباشر بالذكاء الاصطناعي (Google Gemini AI)
+                </h4>
+                <p className="text-xs text-amber-700">
+                  للحصول على تحليل ذكي فوري ومخصص 100% لنشاطك (بدون أي قوالب مسبقة)، أدخل مفتاح Gemini API هنا:
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <input
+                type="password"
+                placeholder="أدخل مفتاح AIzaSy..."
+                id="quick-gemini-key-input"
+                className="px-3 py-2 text-xs rounded-xl border border-amber-300 bg-white focus:outline-hidden focus:ring-2 focus:ring-amber-500 font-mono flex-1 md:w-64"
+              />
+              <button
+                onClick={async () => {
+                  const input = document.getElementById('quick-gemini-key-input') as HTMLInputElement;
+                  if (input && input.value.trim()) {
+                    const key = input.value.trim();
+                    const { saveServerConfig } = await import('./services/dalilakService');
+                    saveServerConfig({ geminiKey: key });
+                    setIsAiLive(true);
+                    if (currentBusiness) {
+                      handleGeneratePlan(currentBusiness);
+                    }
+                  }
+                }}
+                className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold shrink-0 transition-colors shadow-xs"
+              >
+                تفعيل وتوليد الآن
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* If no business is selected */}
         {!currentBusiness ? (
           <div className="py-24 text-center max-w-xl mx-auto space-y-4">
