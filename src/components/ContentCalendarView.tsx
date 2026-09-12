@@ -12,18 +12,21 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  Send,
 } from 'lucide-react';
-import { ContentCalendarDay, ContentPillarType } from '../types';
+import { ContentCalendarDay, ContentPillarType, DalilakBusiness } from '../types';
 import { CONTENT_PILLARS_METADATA } from '../utils/egyptianDialectPrompts';
 
 interface ContentCalendarViewProps {
   calendar: ContentCalendarDay[];
   onUpdateDay: (dayNumber: number, updatedDay: ContentCalendarDay) => void;
+  business?: DalilakBusiness | null;
 }
 
 export const ContentCalendarView: React.FC<ContentCalendarViewProps> = ({
   calendar,
   onUpdateDay,
+  business,
 }) => {
   const [selectedPillar, setSelectedPillar] = useState<string>('all');
   const [copiedDay, setCopiedDay] = useState<number | null>(null);
@@ -35,6 +38,16 @@ export const ContentCalendarView: React.FC<ContentCalendarViewProps> = ({
     navigator.clipboard.writeText(fullText);
     setCopiedDay(day.day);
     setTimeout(() => setCopiedDay(null), 1500);
+  };
+
+  const handleSendWhatsApp = (day: ContentCalendarDay) => {
+    const fullText = `📌 بوست اليوم ${day.day} (${day.pillarTitle}):\n\n${day.hookText}\n\n${day.bodyText}\n\n${day.callToAction}\n\n${day.hashtags.join(' ')}`;
+    const phone = business?.owner_phone || business?.phone || '';
+    const cleanNumber = phone.replace(/\D/g, '');
+    const intlNumber = cleanNumber.startsWith('0') ? `20${cleanNumber.slice(1)}` : cleanNumber;
+    const encoded = encodeURIComponent(fullText);
+    const url = intlNumber ? `https://wa.me/${intlNumber}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    window.open(url, '_blank');
   };
 
   const handleToggleComplete = (day: ContentCalendarDay) => {
@@ -283,10 +296,19 @@ export const ContentCalendarView: React.FC<ContentCalendarViewProps> = ({
 
                       <button
                         onClick={() => handleCopyPost(item)}
-                        className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white font-bold transition-colors"
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-50 font-bold transition-colors"
                       >
                         <Copy className="w-3 h-3" />
-                        <span>نسخ المنشور</span>
+                        <span>نسخ</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleSendWhatsApp(item)}
+                        className="flex items-center gap-1 px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold transition-colors shadow-xs"
+                        title="إرسال البوست عبر واتساب"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>إرسال واتساب</span>
                       </button>
                     </div>
                   </div>

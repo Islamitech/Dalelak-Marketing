@@ -193,8 +193,24 @@ export const Header: React.FC<HeaderProps> = ({
                   value={config.ecosystemUrl}
                   onChange={(e) => setConfig({ ...config, ecosystemUrl: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden text-xs font-mono"
-                  placeholder="https://xdqpbajymacpdccorjcj.supabase.co"
+                  placeholder="https://hzlbbzxccqfdeyumtxph.supabase.co"
                 />
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  مفتاح سيرفر المنظومة المخصص (Ecosystem Supabase Anon Key):
+                </label>
+                <input
+                  type="password"
+                  value={config.ecosystemKey}
+                  onChange={(e) => setConfig({ ...config, ecosystemKey: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-sky-500 focus:outline-hidden text-xs font-mono"
+                  placeholder="أدخل مفتاح Supabase Anon Key الخاص بالمشروع hzlbbzxccqfdeyumtxph"
+                />
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  تجد المفتاح في: Supabase Dashboard &gt; Project Settings &gt; API &gt; anon public
+                </p>
               </div>
 
               <div>

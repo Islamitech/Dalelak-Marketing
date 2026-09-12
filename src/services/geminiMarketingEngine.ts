@@ -212,7 +212,7 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
 
       let jsonText: string | null = null;
 
-      // Try SDK first with standard models
+      // Try SDK first with modern models
       try {
         const ai = new GoogleGenAI({ apiKey });
         const response = await ai.models.generateContent({
@@ -223,9 +223,9 @@ ${customNotes ? `- ملاحظات إضافية: "${customNotes}"` : ''}
         jsonText = response.text || null;
       } catch (sdkErr: any) {
         console.warn('Gemini SDK direct call failed, trying REST fallback:', sdkErr?.message);
-        const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+        const candidateModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
         for (const model of candidateModels) {
-          jsonText = await callGeminiRestApi(apiKey, model, prompt, 12000);
+          jsonText = await callGeminiRestApi(apiKey, model, prompt, 15000);
           if (jsonText) break;
         }
       }

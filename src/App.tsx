@@ -48,32 +48,29 @@ export function App() {
   const [isCoreLive, setIsCoreLive] = useState<boolean>(true);
   const [isAiLive, setIsAiLive] = useState<boolean>(true);
 
-  // Initialize: Load default or recent business
+  // Initialize: Check server connectivity only without auto-selecting or consuming AI
   useEffect(() => {
     async function init() {
       const config = getServerConfig();
-      setIsAiLive(Boolean(config.geminiKey && config.geminiKey.length > 10));
+      setIsAiLive(Boolean(config.geminiKey && config.geminiKey.length > 20));
 
       const res = await fetchDalilakBusinesses({ limit: 1 });
       setIsCoreLive(res.isLive);
-
-      const initialBusiness = res.data[0] || getOfflineDemoBusinesses()[0];
-      handleSelectBusiness(initialBusiness);
     }
     init();
   }, []);
 
-  // Handle business selection
+  // Handle business selection (loads saved cache only, no AI generation until user clicks button)
   const handleSelectBusiness = async (business: DalilakBusiness) => {
     setCurrentBusiness(business);
 
-    // Try loading saved progress from Ecosystem Storage
+    // Load saved progress from Ecosystem Storage if already generated previously
     const saved = await loadActivityProgress(business.id);
-    if (saved && saved.calendar.length > 0) {
+    if (saved && saved.calendar && saved.calendar.length > 0) {
       setProgress(saved);
     } else {
-      // Auto-generate initial strategic baseline for instant delight
-      await handleGeneratePlan(business, 'friendly_baladi');
+      // Do NOT auto-generate; wait for user explicit click
+      setProgress(null);
     }
   };
 
@@ -151,7 +148,10 @@ export function App() {
       <Header
         currentBusiness={currentBusiness}
         onOpenActivitiesModal={() => setIsActivitiesModalOpen(true)}
-        onResetBusiness={() => setCurrentBusiness(null)}
+        onResetBusiness={() => {
+          setCurrentBusiness(null);
+          setProgress(null);
+        }}
         isAiLive={isAiLive}
         isCoreLive={isCoreLive}
       />
@@ -232,8 +232,47 @@ export function App() {
               onChangeBusiness={() => setIsActivitiesModalOpen(true)}
               onGeneratePlan={() => handleGeneratePlan()}
               isGenerating={isGenerating}
-              hasExistingPlan={Boolean(progress && progress.calendar.length > 0)}
+              hasExistingPlan={Boolean(progress && progress.calendar && progress.calendar.length > 0)}
             />
+
+            {/* If no plan generated yet for this business and not currently generating */}
+            {!progress && !isGenerating && (
+              <div className="bg-white rounded-2xl p-8 border border-slate-200 text-center space-y-4 shadow-xs animate-in fade-in">
+                <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center mx-auto">
+                  <Sparkles className="w-7 h-7" />
+                </div>
+                <div className="max-w-md mx-auto space-y-1">
+                  <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                    جاهز لتحليل النشاط وتوليد الخطة التسويقية
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 leading-relaxed">
+                    اضغط على زر التوليد للبدء في تشغيل محرك الذكاء الاصطناعي وصناعة هوية المنشأة وخطة الـ 30 يوماً المخصصة.
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleGeneratePlan()}
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-700 hover:to-indigo-700 text-white font-bold text-sm shadow-md shadow-sky-600/20 active:scale-95 transition-all"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>بدء التوليد بالذكاء الاصطناعي الآن</span>
+                </button>
+              </div>
+            )}
+
+            {/* If currently generating */}
+            {isGenerating && !progress && (
+              <div className="bg-white rounded-2xl p-12 border border-slate-200 text-center space-y-4 shadow-xs animate-in fade-in">
+                <RefreshCw className="w-10 h-10 text-sky-600 animate-spin mx-auto" />
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-900">
+                    جاري دراسة النشاط وصياغة الخطة التسويقية بالذكاء الاصطناعي...
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    يتم الآن تحليل التصنيف والخدمات وتوليد 30 منشوراً تخصصياً وهوية إعلانية متكاملة.
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Sub-bar Actions & Navigation Tabs */}
             {progress && (
@@ -321,6 +360,7 @@ export function App() {
                   <ContentCalendarView
                     calendar={progress.calendar}
                     onUpdateDay={handleUpdateDay}
+                    business={currentBusiness}
                   />
                 )}
 
@@ -334,7 +374,10 @@ export function App() {
                 )}
 
                 {activeMainTab === 'posts' && (
-                  <ReadyPostsTabs readyPosts={progress.readyPosts} />
+                  <ReadyPostsTabs
+                    readyPosts={progress.readyPosts}
+                    business={currentBusiness}
+                  />
                 )}
 
                 {activeMainTab === 'whatsapp' && (

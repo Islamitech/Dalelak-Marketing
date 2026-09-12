@@ -9,14 +9,16 @@ import {
   Facebook,
   Instagram,
   Video,
+  Send,
 } from 'lucide-react';
-import { ReadySocialPost } from '../types';
+import { DalilakBusiness, ReadySocialPost } from '../types';
 
 interface ReadyPostsTabsProps {
   readyPosts: ReadySocialPost[];
+  business?: DalilakBusiness | null;
 }
 
-export const ReadyPostsTabs: React.FC<ReadyPostsTabsProps> = ({ readyPosts }) => {
+export const ReadyPostsTabs: React.FC<ReadyPostsTabsProps> = ({ readyPosts, business }) => {
   const [activeTab, setActiveTab] = useState<number>(0);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -28,6 +30,16 @@ export const ReadyPostsTabs: React.FC<ReadyPostsTabsProps> = ({ readyPosts }) =>
     navigator.clipboard.writeText(text);
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
+  };
+
+  const handleSendWhatsApp = (post: ReadySocialPost) => {
+    const textToSend = `${post.title}\n\n${post.content}\n\n${(post.hashtags || []).join(' ')}`;
+    const phone = business?.owner_phone || business?.phone || '';
+    const cleanNumber = phone.replace(/\D/g, '');
+    const intlNumber = cleanNumber.startsWith('0') ? `20${cleanNumber.slice(1)}` : cleanNumber;
+    const encoded = encodeURIComponent(textToSend);
+    const url = intlNumber ? `https://wa.me/${intlNumber}?text=${encoded}` : `https://wa.me/?text=${encoded}`;
+    window.open(url, '_blank');
   };
 
   const getPlatformIcon = (platform: string) => {
@@ -88,22 +100,33 @@ export const ReadyPostsTabs: React.FC<ReadyPostsTabsProps> = ({ readyPosts }) =>
             <span className="text-xs font-bold text-sky-700">
               {currentPost.title}
             </span>
-            <button
-              onClick={() => handleCopy(currentPost.content, currentPost.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-bold transition-colors"
-            >
-              {copiedId === currentPost.id ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-white" />
-                  <span>تم النسخ!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>نسخ النص كاملاً</span>
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleCopy(currentPost.content, currentPost.id)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-700 hover:bg-slate-100 text-xs font-bold transition-colors"
+              >
+                {copiedId === currentPost.id ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>تم النسخ!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>نسخ النص</span>
+                  </>
+                )}
+              </button>
+
+              <button
+                onClick={() => handleSendWhatsApp(currentPost)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors shadow-xs"
+                title="إرسال عبر واتساب لصاحب النشاط"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>إرسال واتساب</span>
+              </button>
+            </div>
           </div>
 
           <div className="p-4 rounded-xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm leading-relaxed whitespace-pre-line font-medium shadow-2xs">

@@ -3,8 +3,8 @@ import { DalilakBusiness, EcosystemActivityProgress, ServerConfig } from '../typ
 // Default Production Configurations
 export const DEFAULT_CORE_URL = 'https://xdqpbajymacpdccorjcj.supabase.co';
 export const DEFAULT_CORE_KEY = 'sb_publishable_VJ8y1c53by7_sEn90hy8Pw_vO_K_b2x';
-export const DEFAULT_ECOSYSTEM_URL = 'https://xdqpbajymacpdccorjcj.supabase.co';
-export const DEFAULT_ECOSYSTEM_KEY = 'sb_publishable_VJ8y1c53by7_sEn90hy8Pw_vO_K_b2x';
+export const DEFAULT_ECOSYSTEM_URL = 'https://hzlbbzxccqfdeyumtxph.supabase.co';
+export const DEFAULT_ECOSYSTEM_KEY = 'sb_publishable_wCaOboe9oyYsBZ4utP89jA_rAwHIbc9';
 
 const STORAGE_CORE_URL = 'dalelak_core_url';
 const STORAGE_CORE_KEY = 'dalelak_core_key';
@@ -15,8 +15,8 @@ const STORAGE_GEMINI_KEY = 'dalelak_gemini_key';
 export const DEFAULT_GEMINI_KEY = '';
 
 export function isGeminiKeyConfigured(): boolean {
-  const key = localStorage.getItem(STORAGE_GEMINI_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || '';
-  return typeof key === 'string' && key.trim().startsWith('AIzaSy') && key.trim().length > 25;
+  const key = localStorage.getItem(STORAGE_GEMINI_KEY) || (import.meta as any).env?.VITE_GEMINI_API_KEY || DEFAULT_GEMINI_KEY;
+  return typeof key === 'string' && key.trim().length > 20;
 }
 
 export function getServerConfig(): ServerConfig {
@@ -133,6 +133,42 @@ export async function saveActivityProgress(progress: EcosystemActivityProgress):
     // Ignore storage parse error
   }
 
+  // Asynchronously sync to Ecosystem Supabase Server (hzlbbzxccqfdeyumtxph)
+  const { ecosystemUrl, ecosystemKey } = getServerConfig();
+  if (ecosystemUrl && ecosystemKey) {
+    try {
+      const endpoint = `${ecosystemUrl.replace(/\/+$/, '')}/rest/v1/marketing_activities`;
+      const payload = {
+        business_id: progress.businessId,
+        business_name: progress.businessName,
+        category: progress.persona?.category || 'عام',
+        city: progress.persona?.targetAudience?.demographics || 'مصر',
+        persona: progress.persona || {},
+        calendar: progress.calendar || [],
+        ready_posts: progress.readyPosts || [],
+        whatsapp_campaigns: progress.whatsappCampaigns || [],
+        is_promoted_to_core: progress.isPromotedToCore || false,
+        promoted_at: progress.promotedAt || null,
+        updated_at: new Date().toISOString(),
+      };
+
+      fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          apikey: ecosystemKey,
+          Authorization: `Bearer ${ecosystemKey}`,
+          'Content-Type': 'application/json',
+          Prefer: 'resolution=merge-duplicates',
+        },
+        body: JSON.stringify(payload),
+      }).catch((err) => {
+        console.warn('Ecosystem sync network warning:', err);
+      });
+    } catch (e) {
+      // Ignore
+    }
+  }
+
   return true;
 }
 
@@ -142,12 +178,52 @@ export async function saveActivityProgress(progress: EcosystemActivityProgress):
 export async function loadActivityProgress(businessId: string): Promise<EcosystemActivityProgress | null> {
   const cacheKey = `dalelak_marketing_progress_${businessId}`;
   const raw = localStorage.getItem(cacheKey);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as EcosystemActivityProgress;
-  } catch (e) {
-    return null;
+  if (raw) {
+    try {
+      return JSON.parse(raw) as EcosystemActivityProgress;
+    } catch (e) {
+      // Continue to remote fetch
+    }
   }
+
+  // Attempt remote fetch from Ecosystem Supabase Server
+  const { ecosystemUrl, ecosystemKey } = getServerConfig();
+  if (ecosystemUrl && ecosystemKey) {
+    try {
+      const endpoint = `${ecosystemUrl.replace(/\/+$/, '')}/rest/v1/marketing_activities?business_id=eq.${encodeURIComponent(businessId)}`;
+      const res = await fetch(endpoint, {
+        method: 'GET',
+        headers: {
+          apikey: ecosystemKey,
+          Authorization: `Bearer ${ecosystemKey}`,
+          'Content-Type': 'application/json',
+        },
+      });
+      if (res.ok) {
+        const rows = await res.json();
+        if (Array.isArray(rows) && rows.length > 0) {
+          const row = rows[0];
+          const progress: EcosystemActivityProgress = {
+            businessId: row.business_id,
+            businessName: row.business_name,
+            lastUpdated: row.updated_at || new Date().toISOString(),
+            persona: row.persona,
+            calendar: row.calendar || [],
+            readyPosts: row.ready_posts || [],
+            whatsappCampaigns: row.whatsapp_campaigns || [],
+            isPromotedToCore: row.is_promoted_to_core || false,
+            promotedAt: row.promoted_at,
+          };
+          localStorage.setItem(cacheKey, JSON.stringify(progress));
+          return progress;
+        }
+      }
+    } catch (e) {
+      // Remote fetch failed, return null
+    }
+  }
+
+  return null;
 }
 
 /**
